@@ -15,13 +15,13 @@ def main():
     # Crawl the corpus directory to extract links
     corpus = crawl(sys.argv[1])
     
-    # Calculate PageRank using sampling method
+    # Calculate PageRank using the sampling method
     ranks = sample_pagerank(corpus, DAMPING, SAMPLES)
     print(f"PageRank Results from Sampling (n = {SAMPLES})")
     for page in sorted(ranks):
         print(f"  {page}: {ranks[page]:.4f}")
     
-    # Calculate PageRank using iterative method
+    # Calculate PageRank using the iterative method
     ranks = iterate_pagerank(corpus, DAMPING)
     print(f"PageRank Results from Iteration")
     for page in sorted(ranks):
@@ -44,11 +44,12 @@ def crawl(directory):
         with open(os.path.join(directory, filename)) as f:
             contents = f.read()
             
-            # Find all links in the file
+            # Find all links in the file using a regular expression
             links = re.findall(r"<a\s+(?:[^>]*?)href=\"([^\"]*)\"", contents)
+            # Store links, excluding self-links
             pages[filename] = set(links) - {filename}
 
-    # Ensure that links only point to other valid pages
+    # Ensure that links only point to other valid pages within the corpus
     for filename in pages:
         pages[filename] = set(
             link for link in pages[filename]
@@ -82,6 +83,24 @@ def transition_model(corpus, page, damping_factor):
 
     return dist1
 
+def sample_pagerank(corpus, damping_factor, n):
+    """
+    Return PageRank values for each page by sampling `n` pages
+    according to the transition model, starting with a page at random.
+    """
+    page_rank = {page: 0 for page in corpus}
+    current_page = random.choice(list(corpus.keys()))
+
+    for _ in range(n):
+        page_rank[current_page] += 1
+        model = transition_model(corpus, current_page, damping_factor)
+        current_page = random.choices(list(model.keys()), weights=model.values(), k=1)[0]
+
+    # Normalize the ranks so they sum to 1
+    total = sum(page_rank.values())
+    page_rank = {page: rank / total for page, rank in page_rank.items()}
+
+    return page_rank
 
 def iterate_pagerank(corpus, damping_factor):
     """
@@ -92,7 +111,7 @@ def iterate_pagerank(corpus, damping_factor):
     dict1 = {}
     dict2 = {}
 
-    # Initialize the PageRank values to be equal
+    # Initialize the PageRank values to be equal for all pages
     for pg in corpus:
         dict1[pg] = 1 / no_of_pgs
 
